@@ -18,11 +18,10 @@ data_root = 'data/harvard'
 generator = Generator().manual_seed(42)
 
 class Modelo:
-
     if cuda.is_available():
-        __device__ = device('cuda')
+        _DEVICE = device('cuda')
     else:
-        __device__ = device('cpu')
+        _DEVICE = device('cpu')
 
     def __init__(self, train_loader, debug=False) -> None:        
         self.model = vgg16(weights=VGG16_Weights.DEFAULT)
@@ -33,13 +32,13 @@ class Modelo:
         self.model.classifier[6] = Linear(4096,2)
         self.model.classifier[6].requires_grad = True
 
-        self.model.to(self.__device__)
+        self.model.to(self._DEVICE)
 
         self.train_loader = train_loader
 
         # Adicionar trecho de sanidade do código (plotar imagens)
         if debug:
-            print('The model device is:', self.__device__)
+            print('The model device is:', self._DEVICE)
             images, labels = next(iter(self.train_loader))
             print('The data was loaded successfully.')
 
@@ -54,8 +53,8 @@ class Modelo:
         for epoch in range(epochs):
             self.model.train()
             for idx, (train_x, train_label) in enumerate(self.train_loader):
-                train_x = train_x.to(self.__device__)
-                train_label = train_label.to(self.__device__)
+                train_x = train_x.to(self._DEVICE)
+                train_label = train_label.to(self._DEVICE)
 
                 predict_y = self.model( train_x )
                 
