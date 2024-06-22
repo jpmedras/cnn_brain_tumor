@@ -86,7 +86,7 @@ __transform__ = Compose([
 
 dataset = ImageFolder(root=data_root, transform=__transform__)
 
-train_dataset, test_dataset = random_split(dataset, [0.3, 0.7], generator)
+train_dataset, test_dataset = random_split(dataset, [0.7, 0.3], generator)
 
 train_loader = DataLoader(train_dataset,
                         batch_size=4,
