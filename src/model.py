@@ -14,7 +14,7 @@ from torch import sum as tensor_sum
 from datetime import datetime
 import tqdm
 
-data_root = 'data/harvard'
+data_root = 'src/data/harvard'
 generator = Generator().manual_seed(42)
 
 class Modelo:
