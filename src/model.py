@@ -1,103 +1,125 @@
 from torchvision.transforms import Compose
-from torchvision.transforms import ToTensor
-from torchvision.datasets import ImageFolder
+from torchvision.transforms import ToTensor, Grayscale, Normalize
 from torch import Generator
 from torch import device
 from torch import cuda
+from torchvision.datasets import ImageFolder
 from torch.utils.data import random_split
 from torch.utils.data import DataLoader
-from torchvision.models import vgg16, VGG16_Weights
-from torch.nn import Linear, CrossEntropyLoss
+from torchvision.models import alexnet, AlexNet_Weights
+from torch.nn import Linear, BCELoss
 from torch.optim import SGD
-from torch import max as tensor_max
-from torch import sum as tensor_sum
-from datetime import datetime
-import tqdm
+from torch.nn.functional import softmax
+from torch import float
+from torch import save
+from tqdm import tqdm
+import matplotlib.pyplot as plt
 
-data_root = 'data/harvard'
+data_root = 'src/data/harvard'
 generator = Generator().manual_seed(42)
 
-class Modelo:
+def plot_img(image, label=None):
+    plt.imshow(image.permute((1, 2, 0)), cmap='gray')
+    plt.axis('off')
+    if label is None :
+        plt.title('Image in Tensor format')
+    else :
+        plt.title(f'Image in Tensor format | Class: {label:2d}')
+    plt.show()   
+
+class BTumor:
     if cuda.is_available():
         _DEVICE = device('cuda')
     else:
         _DEVICE = device('cpu')
 
-    def __init__(self, train_loader, debug=False) -> None:        
-        self.model = vgg16(weights=VGG16_Weights.DEFAULT)
+    def __init__(self, debug=False) -> None:        
+        self.model = alexnet(weights=AlexNet_Weights.DEFAULT)
 
         for param in self.model.parameters():
             param.requires_grad = False
 
+        if debug:
+            for name, module in self.model.named_modules():
+                print(name, module)
+
         self.model.classifier[6] = Linear(4096,2)
+
         self.model.classifier[6].requires_grad = True
 
         self.model.to(self._DEVICE)
 
-        self.train_loader = train_loader
+    def fit(self, train_loader, test_loader=None, epochs=10, lr=1e-3, debug=False):
+        optimizer = SGD(self.model.parameters(), lr=lr)
+        criterion = BCELoss()
 
-        # Adicionar trecho de sanidade do código (plotar imagens)
-        if debug:
-            print('The model device is:', self._DEVICE)
-            images, labels = next(iter(self.train_loader))
-            print('The data was loaded successfully.')
-
-    def fit(self, epochs=3, lr=0.001, debug=True):
-        optimizer = SGD(self.model.parameters(),lr=lr)
-        criterion = CrossEntropyLoss()
+        max_acc = 0.0
         
-        now = datetime.now()
-        suffix = now.strftime("%Y%m%d_%H%M%S")
-        prefix = suffix # if prefix is None else prefix + '-' + suffix  
-
-        for epoch in range(epochs):
+        for epoch in tqdm(range(epochs), desc='Training epochs...'):
             self.model.train()
-            for idx, (train_x, train_label) in enumerate(self.train_loader):
-                train_x = train_x.to(self._DEVICE)
-                train_label = train_label.to(self._DEVICE)
+            for idx, (inputs, labels) in enumerate(train_loader):
+                inputs = inputs.to(self._DEVICE, dtype=float)
+                labels = labels.to(self._DEVICE, dtype=float)
 
-                predict_y = self.model( train_x )
-                
-                # Loss:
-                error = criterion( predict_y , train_label )
-
-                # Back propagation
                 optimizer.zero_grad()
-                error.backward()
-                optimizer.step()
-                
-                # Accuracy:
-                predict_ys = tensor_max( predict_y, axis=1 )[1]
-                correct    = tensor_sum(predict_ys == train_label)
 
-                if debug and idx % 10 == 0 :
-                    print( f'idx: {idx:4d}, _error: {error.cpu().item():5.2f}' )
+                # TODO: Verificar se está correto
+                outputs = self.model(inputs)
+                outputs = softmax(outputs, dim=1).max(dim=1).values
+                loss = criterion(outputs, labels)
+
+                # backward
+                loss.backward()
+                optimizer.step()
+            
+            if test_loader is not None:
+                accuracy = self.validate(test_loader, debug=debug)
+
+                if accuracy > max_acc:
+                    max_acc = accuracy
+                    save(self.model.state_dict(), 'src/best_model_params.pt')
+                    print("Saving new model with new best accuracy in test:", accuracy)
 
         return self.model
     
-__transform__ = Compose([
-        ToTensor(),
-    ])
+    def validate(self, loader, debug=False):
+        self.model.eval()
 
-# Corrigir
-# __inverse_transform__ = Compose([
-#     ToTensor
-# ])
+        corrects = 0
+        total_len = 0
+        
+        for idx, (inputs, labels) in enumerate(loader):
+            inputs = inputs.to(self._DEVICE, dtype=float)
+            labels = labels.to(self._DEVICE, dtype=float)
 
-dataset = ImageFolder(root=data_root, transform=__transform__)
+            outputs = self.model(inputs)
+            preds = softmax(outputs, dim=1).max(dim=1).indices
+
+            total_len += len(inputs)
+            corrects += (preds == labels).sum().item()
+        
+        return 100 * (corrects/total_len)
+    
+_transform = Compose([
+    ToTensor(),
+    Normalize(
+        mean=(0.1336, 0.1336, 0.1336),
+        std=(0.2156, 0.2156, 0.2156)
+    )
+]) 
+
+dataset = ImageFolder(root=data_root, transform=_transform)
 
 train_dataset, test_dataset = random_split(dataset, [0.3, 0.7], generator)
 
 train_loader = DataLoader(train_dataset,
-                        batch_size=4,
-                        shuffle=True)
+                        batch_size=8,
+                        shuffle=True,
+                        generator=generator)
 test_loader = DataLoader(test_dataset,
-                        batch_size=4,
-                        shuffle=False)
+                        batch_size=8,
+                        shuffle=False,
+                        generator=generator)
 
-x = Modelo(train_loader, debug=True)
-x.fit()
-
-for test_data, test_label in test_loader:
-    out = x.model(test_data)
-    print(out, test_label)
+model = BTumor(debug=False)
+model.fit(train_loader=train_loader, test_loader=test_loader, epochs=20, lr=1e-1, debug=True)
