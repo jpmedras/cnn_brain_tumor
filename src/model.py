@@ -1,13 +1,14 @@
-from torchvision.transforms import Compose
-from torchvision.transforms import ToTensor, Grayscale, Normalize
-from torch import Generator
+import numpy as np
+from torch import manual_seed
+import random
+from torchvision.transforms import Compose, ToTensor, Grayscale
 from torch import device
 from torch import cuda
 from torchvision.datasets import ImageFolder
 from torch.utils.data import random_split
 from torch.utils.data import DataLoader
 from torchvision.models import alexnet, AlexNet_Weights
-from torch.nn import Linear, BCELoss
+from torch.nn import Conv2d, Linear, BCELoss
 from torch.optim import SGD
 from torch.nn.functional import softmax
 from torch import float
@@ -16,7 +17,10 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 data_root = 'src/data/harvard'
-generator = Generator().manual_seed(42)
+
+np.random.seed(42)
+manual_seed(42)
+random.seed(42)
 
 def plot_img(image, label=None):
     plt.imshow(image.permute((1, 2, 0)), cmap='gray')
@@ -27,7 +31,7 @@ def plot_img(image, label=None):
         plt.title(f'Image in Tensor format | Class: {label:2d}')
     plt.show()   
 
-class BTumor:
+class AlexNet:
     if cuda.is_available():
         _DEVICE = device('cuda')
     else:
@@ -42,9 +46,12 @@ class BTumor:
         if debug:
             for name, module in self.model.named_modules():
                 print(name, module)
-
+        
+        # self.model.features[0] = Conv2d(1, 64, kernel_size=(11, 11), stride=(4, 4), padding=(2, 2))
         self.model.classifier[6] = Linear(4096,2)
 
+        # self.model.classifier[0].requires_grad = True
+        # self.model.classifier[3].requires_grad = True
         self.model.classifier[6].requires_grad = True
 
         self.model.to(self._DEVICE)
@@ -54,8 +61,9 @@ class BTumor:
         criterion = BCELoss()
 
         max_acc = 0.0
+        accuracies = []
         
-        for epoch in tqdm(range(epochs), desc='Training epochs...'):
+        for epoch in tqdm(range(epochs), desc='Training epochs'):
             self.model.train()
             for idx, (inputs, labels) in enumerate(train_loader):
                 inputs = inputs.to(self._DEVICE, dtype=float)
@@ -73,22 +81,28 @@ class BTumor:
                 optimizer.step()
             
             if test_loader is not None:
-                accuracy = self.validate(test_loader, debug=debug)
+                accuracy = self.validate(test_loader)
+
+                accuracies.append(accuracy)
 
                 if accuracy > max_acc:
                     max_acc = accuracy
-                    save(self.model.state_dict(), 'src/best_model_params.pt')
-                    print("Saving new model with new best accuracy in test:", accuracy)
+                    save(self.model.state_dict(), 'src/best_model.pt')
+                    print(f"Saving new model in epoch {epoch} with new best accuracy in test:", accuracy)
+
+            # if debug:
+            #     plt.plot(accuracies)
+            #     plt.show()
 
         return self.model
     
-    def validate(self, loader, debug=False):
+    def validate(self, loader):
         self.model.eval()
 
         corrects = 0
         total_len = 0
         
-        for idx, (inputs, labels) in enumerate(loader):
+        for inputs, labels in loader:
             inputs = inputs.to(self._DEVICE, dtype=float)
             labels = labels.to(self._DEVICE, dtype=float)
 
@@ -97,29 +111,27 @@ class BTumor:
 
             total_len += len(inputs)
             corrects += (preds == labels).sum().item()
+
+            # plot_img(image=inputs[0].to('cpu'))
         
         return 100 * (corrects/total_len)
     
 _transform = Compose([
     ToTensor(),
-    Normalize(
-        mean=(0.1336, 0.1336, 0.1336),
-        std=(0.2156, 0.2156, 0.2156)
-    )
-]) 
+    # Grayscale(),
+])
+
 
 dataset = ImageFolder(root=data_root, transform=_transform)
 
-train_dataset, test_dataset = random_split(dataset, [0.3, 0.7], generator)
+train_dataset, test_dataset = random_split(dataset, [0.8, 0.2])
 
 train_loader = DataLoader(train_dataset,
                         batch_size=8,
-                        shuffle=True,
-                        generator=generator)
+                        shuffle=True)
 test_loader = DataLoader(test_dataset,
                         batch_size=8,
-                        shuffle=False,
-                        generator=generator)
+                        shuffle=False)
 
-model = BTumor(debug=False)
-model.fit(train_loader=train_loader, test_loader=test_loader, epochs=20, lr=1e-1, debug=True)
+model = AlexNet(debug=False)
+model.fit(train_loader=train_loader, test_loader=test_loader, epochs=20, lr=1e-3, debug=True)
