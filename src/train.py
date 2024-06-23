@@ -61,18 +61,13 @@ train_jitter = DatasetFromSubset(
     transform=Compose([ColorJitter(brightness=.3, hue=.3), Normalize(mean=dataset_mean, std=dataset_std)])
 )
 
-blur_subset = Subset(dataset, train_subset.indices)
-train_blur = DatasetFromSubset(
-    subset=blur_subset,
-    transform=Compose([GaussianBlur(kernel_size=(5, 9), sigma=(0.3, 1.5)), Normalize(mean=dataset_mean, std=dataset_std)])
-)
+train_dataset = ConcatDataset([train_dataset, train_jitter])
 
-# plot_img(train_dataset[0][0], dataset.classes[train_dataset[0][1]])
-# plot_img(train_jitter[30][0], dataset.classes[train_jitter[30][1]])
-# plot_img(train_blur[60][0], dataset.classes[train_blur[60][1]])
-# plot_img(test_dataset[25][0], dataset.classes[test_dataset[25][1]])
+for s_dataset in [train_dataset, test_dataset]:
+    labels = [label for image, label in s_dataset]
 
-train_dataset = ConcatDataset([train_dataset, train_jitter, train_blur])
+    print(f"Class: {dataset.classes[0]} | Count: {labels.count(0)}")
+    print(f"Class: {dataset.classes[1]} | Count: {labels.count(1)}")
 
 train_loader = DataLoader(train_dataset,
                         batch_size=32,
@@ -82,4 +77,4 @@ test_loader = DataLoader(test_dataset,
                         shuffle=False)
 
 model = AlexNet()
-model.fit(train_loader=train_loader, test_loader=test_loader, epochs=10, lr=1e-3, debug=True)
+model.fit(train_loader=train_loader, test_loader=test_loader, epochs=15, lr=1e-3, debug=True)
