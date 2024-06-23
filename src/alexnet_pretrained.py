@@ -68,7 +68,7 @@ class AlexNet(Module):
                     print(f"Saving new model in epoch {epoch} with new best accuracy in test:", accuracy)
 
         if debug:
-            plt.title('Accuracy in train')
+            plt.title('Accuracy in test')
             plt.plot(accuracies)
             plt.show()
 
@@ -98,5 +98,5 @@ class AlexNet(Module):
         image = image.unsqueeze(dim=0)
         output = self.foward(image)
         preds = softmax(output, dim=1).max(dim=1).indices.item()
-        
+
         return preds
