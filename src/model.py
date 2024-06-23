@@ -103,8 +103,8 @@ class AlexNet(Module):
     def validate(self, loader):
         self.model.eval()
 
-        corrects = 0
-        total_len = 0
+        n_corrects = 0
+        n_total = 0
         
         for inputs, labels in loader:
             inputs = inputs.to(self._DEVICE, dtype=float)
@@ -113,10 +113,10 @@ class AlexNet(Module):
             outputs = self.model(inputs)
             preds = softmax(outputs, dim=1).max(dim=1).indices
 
-            total_len += len(inputs)
-            corrects += (preds == labels).sum().item()
+            n_total += len(inputs)
+            n_corrects += (preds == labels).sum().item()
         
-        return 100 * (corrects/total_len)
+        return 100 * (n_corrects/n_total)
 
 dataset = ImageFolder(root=data_root, transform=ToTensor())
 
