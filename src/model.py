@@ -122,6 +122,13 @@ dataset = ImageFolder(root=data_root, transform=ToTensor())
 
 train_dataset, test_dataset = random_split(dataset, [0.8, 0.2])
 
+for subset in [train_dataset, test_dataset]:
+    targets = []
+    for index in subset.indices:
+        targets.append(subset.dataset.targets[index])
+
+    print(targets.count(0), targets.count(1))
+
 train_loader = DataLoader(train_dataset,
                         batch_size=32,
                         shuffle=True)
