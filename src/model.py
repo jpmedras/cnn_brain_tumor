@@ -129,5 +129,5 @@ test_loader = DataLoader(test_dataset,
                         batch_size=32,
                         shuffle=False)
 
-model = AlexNet(debug=False)
+model = AlexNet()
 model.fit(train_loader=train_loader, test_loader=test_loader, epochs=35, lr=1e-3, debug=True)
