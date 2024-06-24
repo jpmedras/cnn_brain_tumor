@@ -80,12 +80,14 @@ class AlexNet(Module):
                     print(f"Saving new model in epoch {epoch} with new best accuracy in test:", accuracy)
 
         if debug:
-            plt.title('Accuracy in train')
-            plt.plot(train_accuracies)
-            plt.show()
-
-            plt.title('Accuracy in test')
-            plt.plot(test_accuracies)
+            plt.figure()
+            plt.plot(range(1, epochs + 1), train_accuracies, label='Train Accuracy')
+            plt.plot(range(1, epochs + 1), test_accuracies, label='Test Accuracy')
+            plt.xlabel('Epochs')
+            plt.ylabel('Accuracy')
+            plt.legend()
+            plt.title('AlexNet accuracies')
+            plt.savefig(f'alexnet_accuracies.png')
             plt.show()
 
         return self
