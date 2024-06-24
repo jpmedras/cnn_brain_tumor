@@ -77,9 +77,9 @@ test_loader = DataLoader(test_dataset,
                         shuffle=False)
 
 model = AlexNet()
-model.fit(train_loader=train_loader, test_loader=test_loader, epochs=15, lr=1e-3, debug=True)
+# model.fit(train_loader=train_loader, test_loader=test_loader, epochs=15, lr=1e-3, debug=True)
 
-# model.load_state_dict(load('src/models/best_model.pt'))
+model.load_state_dict(load('src/models/best_model.pt'))
 
 preds = []
 y = []
@@ -88,14 +88,12 @@ for image, label in test_dataset:
     preds.append(pred)
     y.append(label)
 
-print(preds)
-print(y)
-
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 cm = confusion_matrix(y_true=y, y_pred=preds, labels=[0,1])
 disp = ConfusionMatrixDisplay(confusion_matrix=cm,
                               display_labels=dataset.classes)
 
-disp.plot()
+disp.plot(cmap='Blues')
+plt.title('AlexNet Confusion Matrix')
 plt.show()
