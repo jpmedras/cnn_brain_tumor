@@ -5,6 +5,7 @@ from torchvision.models import alexnet, AlexNet_Weights
 from torch.nn import Linear, BCELoss
 from torch.optim import SGD
 from torch.nn.functional import softmax
+from torch import no_grad
 from torch import float
 from torch import save
 from tqdm import tqdm
@@ -38,10 +39,15 @@ class AlexNet(Module):
         criterion = BCELoss()
 
         max_acc = 0.0
-        accuracies = []
+        train_accuracies = []
+        test_accuracies = []
         
         for epoch in tqdm(range(epochs), desc='Training epochs'):
             self.train()
+
+            n_corrects = 0
+            n_total = 0
+
             for inputs, labels in train_loader:
                 inputs = inputs.to(self._DEVICE, dtype=float)
                 labels = labels.to(self._DEVICE, dtype=float)
@@ -50,17 +56,23 @@ class AlexNet(Module):
 
                 # TODO: Verificar se está correto
                 outputs = self.foward(inputs)
-                outputs = softmax(outputs, dim=1).max(dim=1).values
-                loss = criterion(outputs, labels)
+                outputs_ = softmax(outputs, dim=1).max(dim=1).values
+                loss = criterion(outputs_, labels)
+
+                preds = softmax(outputs, dim=1).max(dim=1).indices
+                n_total += len(inputs)
+                n_corrects += (preds == labels).sum().item()
 
                 # backward
                 loss.backward()
                 optimizer.step()
+
+            train_accuracies.append(100 * (n_corrects/n_total))
             
             if test_loader is not None:
                 accuracy = self.validate(test_loader)
 
-                accuracies.append(accuracy)
+                test_accuracies.append(accuracy)
 
                 if accuracy > max_acc:
                     max_acc = accuracy
@@ -68,8 +80,12 @@ class AlexNet(Module):
                     print(f"Saving new model in epoch {epoch} with new best accuracy in test:", accuracy)
 
         if debug:
+            plt.title('Accuracy in train')
+            plt.plot(train_accuracies)
+            plt.show()
+
             plt.title('Accuracy in test')
-            plt.plot(accuracies)
+            plt.plot(test_accuracies)
             plt.show()
 
         return self
@@ -79,18 +95,20 @@ class AlexNet(Module):
 
         n_corrects = 0
         n_total = 0
-        
-        for inputs, labels in loader:
-            inputs = inputs.to(self._DEVICE, dtype=float)
-            labels = labels.to(self._DEVICE, dtype=float)
 
-            outputs = self.foward(inputs)
-            preds = softmax(outputs, dim=1).max(dim=1).indices
+        with no_grad():
 
-            n_total += len(inputs)
-            n_corrects += (preds == labels).sum().item()
-        
-        return 100 * (n_corrects/n_total)
+            for inputs, labels in loader:
+                inputs = inputs.to(self._DEVICE, dtype=float)
+                labels = labels.to(self._DEVICE, dtype=float)
+
+                outputs = self.foward(inputs)
+                preds = softmax(outputs, dim=1).max(dim=1).indices
+
+                n_total += len(inputs)
+                n_corrects += (preds == labels).sum().item()
+            
+            return 100 * (n_corrects/n_total)
     
     def predict(self, image):
         self.eval()
