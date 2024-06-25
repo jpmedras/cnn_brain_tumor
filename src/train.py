@@ -6,8 +6,10 @@ from torchvision.datasets import ImageFolder
 from torch.utils.data import random_split
 from torch.utils.data import Dataset, ConcatDataset, DataLoader
 from torch import load
+from torch import zeros
 import matplotlib.pyplot as plt
 from alexnet_pretrained import AlexNet
+
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 # Set seeds
@@ -22,15 +24,17 @@ class CustomDataset(Dataset):
 
     def __getitem__(self, index):
         x, y = self.dataset[index]
+        y_ = zeros(2)
+        y_[y] = 1
         if self.transform:
             x = self.transform(x)
-        return x, y
+        return x, y_
 
     def __len__(self):
         return len(self.dataset)
     
 def data_augmentation(subset, transforms):
-    datasets = [subset]
+    datasets = [CustomDataset(subset)]
 
     for transform in transforms:
         datasets.append(CustomDataset(subset, transform))
@@ -46,23 +50,26 @@ def plot_img(image, label=None):
         plt.title(f'Image in Tensor format | Class: {label}')
     plt.show()
 
-def dist(datasets, names, classes):
-    for dataset, name in zip(datasets, names):
-        labels = [label for _, label in dataset]
+def dist(datasets_13, names_13, classes_13):
+    for dataset_13, name_13 in zip(datasets_13, names_13):
 
-        print(name)
-        print(f"\tClass: {classes[0]} | Count: {labels.count(0)}")
-        print(f"\tClass: {classes[1]} | Count: {labels.count(1)}")
+        labels_13 = []
+        for _, label_13 in dataset_13:
+            labels_13.append(label_13.argmax(dim=0).item())
+
+        print(name_13)
+        print(f"\tClass: {classes_13[0]} | Count: {labels_13.count(0)}")
+        print(f"\tClass: {classes_13[1]} | Count: {labels_13.count(1)}")
 
 def score(model):
-    y_pred = []
-    y_true = []
-    for image, label in test_dataset:
-        pred = model.predict(image)
-        y_pred.append(pred)
-        y_true.append(label)
+    y_pred_15 = []
+    y_true_15 = []
+    for image_15, label_15 in test_dataset:
+        pred_15 = model.predict(image_15)
+        y_pred_15.append(pred_15)
+        y_true_15.append(label_15.argmax(dim=0).item())
 
-    cm = confusion_matrix(y_true=y_true, y_pred=y_pred, labels=[0,1])
+    cm = confusion_matrix(y_true=y_pred_15, y_pred=y_true_15)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm,
                                     display_labels=dataset.classes)
 
@@ -73,7 +80,7 @@ def score(model):
 DATA_ROOT = 'src/data/harvard/'
 
 BATCH_SIZE = 64
-EPOCHS = 40
+EPOCHS = 25
 LR = 1e-3
 
 dataset = ImageFolder(root=DATA_ROOT, transform=ToTensor())
@@ -95,9 +102,9 @@ test_loader = DataLoader(test_dataset,
                         batch_size=BATCH_SIZE,
                         shuffle=False)
 
+dist([train_dataset, test_dataset], ['Train', 'Test'], dataset.classes)
+
 model = AlexNet()
 model.fit(train_loader=train_loader, eval_loader=test_loader, epochs=EPOCHS, lr=LR, debug=True)
 
 score(model)
-
-dist([train_dataset, test_dataset], ['Train', 'Test'], dataset.classes)

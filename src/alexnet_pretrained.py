@@ -2,7 +2,7 @@ from torch import device
 from torch import cuda
 from torch.nn import Module
 from torchvision.models import alexnet, AlexNet_Weights
-from torch.nn import Linear, BCELoss
+from torch.nn import Linear, BCEWithLogitsLoss
 from torch.optim import SGD
 from torch.nn.functional import softmax
 from torch import no_grad
@@ -36,7 +36,7 @@ class AlexNet(Module):
 
     def fit(self, train_loader, eval_loader=None, epochs=10, lr=1e-3, file_path='src/models/best_model.pt', debug=False):
         optimizer = SGD(self.parameters(), lr=lr)
-        criterion = BCELoss()
+        criterion = BCEWithLogitsLoss()
 
         max_acc = 0.0
         train_accuracies = []
@@ -54,14 +54,18 @@ class AlexNet(Module):
 
                 optimizer.zero_grad()
 
-                # TODO: Verificar se está correto
                 outputs = self.foward(inputs)
-                outputs_ = softmax(outputs, dim=1).max(dim=1).values
-                loss = criterion(outputs_, labels)
+                # print(outputs.shape)
+                # print(labels.shape)
+                loss = criterion(outputs, labels)
 
-                preds = softmax(outputs, dim=1).max(dim=1).indices
+                y_pred = softmax(outputs, dim=1).max(dim=1).indices
+                y_true = labels.argmax(dim=1)
+                # print(y_pred)
+                # print(y_true)
+                # print()
                 n_total += len(inputs)
-                n_corrects += (preds == labels).sum().item()
+                n_corrects += (y_pred == y_true).sum().item()
 
                 # backward
                 loss.backward()
@@ -95,22 +99,24 @@ class AlexNet(Module):
     def validate(self, loader):
         self.eval()
 
-        n_corrects = 0
-        n_total = 0
+        n_corrects_123 = 0
+        n_total_123 = 0
 
         with no_grad():
 
-            for inputs, labels in loader:
-                inputs = inputs.to(self._DEVICE, dtype=float)
-                labels = labels.to(self._DEVICE, dtype=float)
+            for inputs_123, labels_123 in loader:
+                inputs_123 = inputs_123.to(self._DEVICE, dtype=float)
+                labels_123 = labels_123.to(self._DEVICE, dtype=float)
 
-                outputs = self.foward(inputs)
-                preds = softmax(outputs, dim=1).max(dim=1).indices
 
-                n_total += len(inputs)
-                n_corrects += (preds == labels).sum().item()
+                outputs_123 = self.foward(inputs_123)
+                y_pred_123 = softmax(outputs_123, dim=1).max(dim=1).indices
+                y_true_123 = labels_123.argmax(dim=1)
+
+                n_total_123 += len(inputs_123)
+                n_corrects_123 += (y_pred_123 == y_true_123).sum().item()
             
-            return 100 * (n_corrects/n_total)
+            return 100 * (n_corrects_123/n_total_123)
     
     def predict(self, image):
         self.eval()
