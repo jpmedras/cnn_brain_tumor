@@ -13,3 +13,8 @@ To run experiments, you can access:
 
 1. AlexNet model: `src/train.py`
 2. ResNet-50 model: `src/Brain Tumor Diagnosis.ipynb`
+
+## Results
+
+![AlexNet](alexnet_accuracies.png)
+![ResNet-50](resnet50_accuracies.png)
