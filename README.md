@@ -1,4 +1,4 @@
-# cnn_brain_tumor
+# Brain Tumor Diagnosis Using Medical Imaging
 
 An undergraduate project to detect brain tumor using CNN focused on explainability.
 
