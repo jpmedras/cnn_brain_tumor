@@ -34,7 +34,7 @@ class AlexNet(Module):
     def foward(self, x):
         return self.model(x)
 
-    def fit(self, train_loader, test_loader=None, epochs=10, lr=1e-3, file_path='src/models/best_model.pt', debug=False):
+    def fit(self, train_loader, eval_loader=None, epochs=10, lr=1e-3, file_path='src/models/best_model.pt', debug=False):
         optimizer = SGD(self.parameters(), lr=lr)
         criterion = BCELoss()
 
@@ -69,8 +69,8 @@ class AlexNet(Module):
 
             train_accuracies.append(100 * (n_corrects/n_total))
             
-            if test_loader is not None:
-                accuracy = self.validate(test_loader)
+            if eval_loader is not None:
+                accuracy = self.validate(eval_loader)
 
                 test_accuracies.append(accuracy)
 

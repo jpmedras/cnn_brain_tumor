@@ -1,27 +1,41 @@
 import numpy as np
 from torch import manual_seed
 import random
-from torchvision.transforms import Compose, ToTensor, ColorJitter, GaussianBlur, Normalize
+from torchvision.transforms import Compose, ToTensor, RandomRotation, RandomCrop, Resize, ElasticTransform, ColorJitter
 from torchvision.datasets import ImageFolder
 from torch.utils.data import random_split
-from torch.utils.data import Dataset, Subset, ConcatDataset, DataLoader
+from torch.utils.data import Dataset, ConcatDataset, DataLoader
 from torch import load
 import matplotlib.pyplot as plt
 from alexnet_pretrained import AlexNet
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
-class DatasetFromSubset(Dataset):
-    def __init__(self, subset, transform=None):
-        self.subset = subset
+# Set seeds
+np.random.seed(42)
+manual_seed(42)
+random.seed(42)
+
+class CustomDataset(Dataset):
+    def __init__(self, dataset, transform=None):
+        self.dataset = dataset
         self.transform = transform
 
     def __getitem__(self, index):
-        x, y = self.subset[index]
+        x, y = self.dataset[index]
         if self.transform:
             x = self.transform(x)
         return x, y
 
     def __len__(self):
-        return len(self.subset)
+        return len(self.dataset)
+    
+def data_augmentation(subset, transforms):
+    datasets = [subset]
+
+    for transform in transforms:
+        datasets.append(CustomDataset(subset, transform))
+
+    return ConcatDataset(datasets)
 
 def plot_img(image, label=None):
     plt.imshow(image.permute((1, 2, 0)), cmap='gray')
@@ -32,68 +46,58 @@ def plot_img(image, label=None):
         plt.title(f'Image in Tensor format | Class: {label}')
     plt.show()
 
-np.random.seed(42)
-manual_seed(42)
-random.seed(42)
+def dist(datasets, names, classes):
+    for dataset, name in zip(datasets, names):
+        labels = [label for _, label in dataset]
 
-data_root = 'src/data/harvard'
+        print(name)
+        print(f"\tClass: {classes[0]} | Count: {labels.count(0)}")
+        print(f"\tClass: {classes[1]} | Count: {labels.count(1)}")
 
-dataset_mean = (0.1338, 0.1338, 0.1338)
-dataset_std = (0.2054, 0.2054, 0.2054)
+def score(model):
+    y_pred = []
+    y_true = []
+    for image, label in test_dataset:
+        pred = model.predict(image)
+        y_pred.append(pred)
+        y_true.append(label)
 
-dataset = ImageFolder(root=data_root, transform=Compose([ToTensor()]))
+    cm = confusion_matrix(y_true=y_true, y_pred=y_pred, labels=[0,1])
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm,
+                                    display_labels=dataset.classes)
 
+    disp.plot(cmap='Blues')
+    plt.title('AlexNet Confusion Matrix')
+    plt.show()
+
+DATA_ROOT = 'src/data/harvard/'
+
+BATCH_SIZE = 64
+EPOCHS = 40
+LR = 1e-3
+
+dataset = ImageFolder(root=DATA_ROOT, transform=ToTensor())
 train_subset, test_subset = random_split(dataset, [0.6, 0.4])
 
-train_dataset = DatasetFromSubset(
-    subset=train_subset,
-    transform=Normalize(mean=dataset_mean, std=dataset_std)
-)
+transforms = [
+    RandomRotation(degrees=(-15, 15)),
+    Compose([RandomCrop(size=(200, 200)), Resize(size=(256,256))]),
+    ElasticTransform(alpha=50.0)
+]
 
-test_dataset = DatasetFromSubset(
-    subset=test_subset,
-    transform=Normalize(mean=dataset_mean, std=dataset_std)
-)
-
-jitter_subset = Subset(dataset, train_subset.indices)
-train_jitter = DatasetFromSubset(
-    subset=jitter_subset,
-    transform=Compose([ColorJitter(brightness=.3, hue=.3), Normalize(mean=dataset_mean, std=dataset_std)])
-)
-
-train_dataset = ConcatDataset([train_dataset, train_jitter])
-
-for s_dataset in [train_dataset, test_dataset]:
-    labels = [label for image, label in s_dataset]
-
-    print(f"Class: {dataset.classes[0]} | Count: {labels.count(0)}")
-    print(f"Class: {dataset.classes[1]} | Count: {labels.count(1)}")
+train_dataset = data_augmentation(train_subset, transforms)
+test_dataset = CustomDataset(test_subset)
 
 train_loader = DataLoader(train_dataset,
-                        batch_size=32,
+                        batch_size=BATCH_SIZE,
                         shuffle=True)
 test_loader = DataLoader(test_dataset,
-                        batch_size=32,
+                        batch_size=BATCH_SIZE,
                         shuffle=False)
 
 model = AlexNet()
-# model.fit(train_loader=train_loader, test_loader=test_loader, epochs=15, lr=1e-3, debug=True)
+model.fit(train_loader=train_loader, eval_loader=test_loader, epochs=EPOCHS, lr=LR, debug=True)
 
-model.load_state_dict(load('src/models/best_model.pt'))
+score(model)
 
-preds = []
-y = []
-for image, label in test_dataset:
-    pred = model.predict(image)
-    preds.append(pred)
-    y.append(label)
-
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-
-cm = confusion_matrix(y_true=y, y_pred=preds, labels=[0,1])
-disp = ConfusionMatrixDisplay(confusion_matrix=cm,
-                              display_labels=dataset.classes)
-
-disp.plot(cmap='Blues')
-plt.title('AlexNet Confusion Matrix')
-plt.show()
+dist([train_dataset, test_dataset], ['Train', 'Test'], dataset.classes)
