@@ -102,9 +102,9 @@ test_loader = DataLoader(test_dataset,
                         batch_size=BATCH_SIZE,
                         shuffle=False)
 
-dist([train_dataset, test_dataset], ['Train', 'Test'], dataset.classes)
-
 model = AlexNet()
 model.fit(train_loader=train_loader, eval_loader=test_loader, epochs=EPOCHS, lr=LR, debug=True)
+
+dist([train_dataset, test_dataset], ['Train', 'Test'], dataset.classes)
 
 score(model)

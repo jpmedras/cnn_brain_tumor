@@ -118,11 +118,11 @@ class AlexNet(Module):
             
             return 100 * (n_corrects_123/n_total_123)
     
-    def predict(self, image):
+    def predict(self, image_4):
         self.eval()
 
-        image = image.unsqueeze(dim=0)
-        output = self.foward(image)
-        preds = softmax(output, dim=1).max(dim=1).indices.item()
+        image_4 = image_4.unsqueeze(dim=0)
+        output_4 = self.foward(image_4)
+        preds_4 = softmax(output_4, dim=1).max(dim=1).indices.item()
 
-        return preds
+        return preds_4
