@@ -80,11 +80,11 @@ def score(model):
 DATA_ROOT = 'src/data/harvard/'
 
 BATCH_SIZE = 64
-EPOCHS = 25
+EPOCHS = 15
 LR = 1e-3
 
 dataset = ImageFolder(root=DATA_ROOT, transform=ToTensor())
-train_subset, test_subset = random_split(dataset, [0.6, 0.4])
+train_subset, test_subset = random_split(dataset, [0.80, 0.2])
 
 transforms = [
     RandomRotation(degrees=(-15, 15)),
@@ -93,6 +93,7 @@ transforms = [
 ]
 
 train_dataset = data_augmentation(train_subset, transforms)
+
 test_dataset = CustomDataset(test_subset)
 
 train_loader = DataLoader(train_dataset,

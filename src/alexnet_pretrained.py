@@ -34,7 +34,7 @@ class AlexNet(Module):
     def foward(self, x):
         return self.model(x)
 
-    def fit(self, train_loader, eval_loader=None, epochs=10, lr=1e-3, file_path='src/models/best_model.pt', debug=False):
+    def fit(self, train_loader, eval_loader=None, epochs=10, lr=1e-3, file_path='src/weights/best_model.pt', debug=False):
         optimizer = SGD(self.parameters(), lr=lr)
         criterion = BCEWithLogitsLoss()
 

@@ -4,7 +4,7 @@ from torchvision.datasets import ImageFolder
 from torchvision.transforms import ToTensor
 
 model = AlexNet()
-model.load_state_dict(load('src/models/best_model.pt'))
+model.load_state_dict(load('src/weights/best_model.pt'))
 
 dataset = ImageFolder(root='src/data/', transform=ToTensor())
 
